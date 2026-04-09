@@ -49,3 +49,25 @@ Each entry records what was done, decisions made, and why.
 **Next steps:**
 - Execute T-001 through T-004 (Phase 1 MVP)
 - Assignment due soon — prioritize getting a working tool
+
+---
+
+## [2026-04-09] — Phase 1 Implementation (T-001 through T-004)
+
+**What was done:**
+- Implemented all 4 Phase 1 tickets: Scraper+Config, Financials+Charts+Utils, Excel Builder+CLI, Jupyter Notebook
+- Fixed broken `pyproject.toml` build backend and set up virtual environment
+- Wrote 27 unit tests covering utils, financials, charts, and excel builder (all passing)
+- All code passes `ruff check .` lint
+- Could not test live yfinance API calls — network access blocked in Claude Code Web environment
+
+**Decisions made:**
+- Used `PageSetupProperties` instead of `PrintPageSetup` for openpyxl's `pageSetUpPr` (ticket spec had wrong class)
+- Return period calculation checks that history actually spans the period before computing return (prevents misleading partial-period returns)
+- Excluded `data/raw/` from ruff config since original class script has intentional bugs we don't want to fix
+
+**Next steps:**
+- Run `python scripts/main.py CAT` locally to verify end-to-end with real data
+- Run notebook with network access to populate output cells before class submission
+- Fine-tune Excel layout spacing if needed after visual inspection
+- Begin Phase 2 tickets (email delivery, EDGAR, FRED) when ready
