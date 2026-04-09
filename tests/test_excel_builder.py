@@ -110,11 +110,12 @@ class TestBuildTearSheet:
             assert ws.cell(row=1, column=1).value == "Test Corp"
             assert ws.cell(row=1, column=18).value == "TEST"
 
-            # Check section headers exist
+            # Check section headers exist (row numbers from SECTION_ROWS in config)
             assert ws.cell(row=3, column=1).value == "COMPANY OVERVIEW"
-            assert ws.cell(row=10, column=1).value == "FINANCIAL DATA"
-            assert ws.cell(row=23, column=1).value == "STOCK PERFORMANCE"
-            assert ws.cell(row=37, column=1).value == "VALUATION"
+            assert ws.cell(row=12, column=1).value == "FINANCIAL DATA"
+            assert ws.cell(row=28, column=1).value == "STOCK PERFORMANCE"
+            assert ws.cell(row=45, column=1).value == "VALUATION"
+            assert ws.cell(row=54, column=1).value == "SOURCES"
 
     def test_handles_missing_data(self):
         """Test with minimal data — no charts, no analyst targets."""

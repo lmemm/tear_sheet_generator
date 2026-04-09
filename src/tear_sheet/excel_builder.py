@@ -9,6 +9,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.worksheet.properties import PageSetupProperties
 from tear_sheet.config import (
     COLUMN_WIDTHS,
+    DESCRIPTION_ROW_HEIGHT,
     FONT_NAME,
     HEADER_BG_COLOR,
     HEADER_FONT_COLOR,
@@ -48,6 +49,7 @@ def build_tear_sheet(
     ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=16)
     title_cell = ws.cell(row=1, column=1, value=_val(info.get("company_name")))
     title_cell.font = Font(name=FONT_NAME, size=TITLE_FONT_SIZE, bold=True)
+    title_cell.alignment = Alignment(horizontal="center")
     ticker_cell = ws.cell(row=1, column=18, value=_val(info.get("ticker")))
     ticker_cell.font = Font(name=FONT_NAME, size=TITLE_FONT_SIZE, bold=True)
     ticker_cell.alignment = Alignment(horizontal="right")
@@ -69,13 +71,16 @@ def build_tear_sheet(
     _write_label_value(ws, row + 2, 2, "Location:", 3, location)
     _write_label_value(ws, row + 2, 10, "Employees:", 11, emp_display)
 
-    # Rows 6-9: Description
+    # Rows 6-11: Description (expanded to avoid cutoff)
     _write_label_value(ws, row + 3, 2, "Description:", 3, None)
     desc = info.get("description") or "N/A"
-    ws.merge_cells(start_row=row + 3, start_column=3, end_row=row + 6, end_column=LAST_COL_NUM)
+    ws.merge_cells(start_row=row + 3, start_column=3, end_row=row + 8, end_column=LAST_COL_NUM)
     desc_cell = ws.cell(row=row + 3, column=3, value=desc)
     desc_cell.font = Font(name=FONT_NAME, size=VALUE_FONT_SIZE)
     desc_cell.alignment = Alignment(wrap_text=True, vertical="top")
+    # Set row heights so description text is fully visible
+    for desc_r in range(row + 3, row + 9):
+        ws.row_dimensions[desc_r].height = DESCRIPTION_ROW_HEIGHT
 
     # =====================================================================
     # Section 2: Financial Data
@@ -83,13 +88,12 @@ def build_tear_sheet(
     row = SECTION_ROWS["financial_data"]
     _write_section_header(ws, row, "FINANCIAL DATA")
 
-    # Revenue chart (rows 11-16)
-    chart_row = row + 1
+    # Revenue chart (I14 to Q26)
     if "revenue_chart" in charts:
-        _embed_image(ws, charts["revenue_chart"], f"A{chart_row}", width=380, height=190)
+        _embed_image(ws, charts["revenue_chart"], "I14", width=680, height=245)
 
-    # Revenue Growth YoY
-    yoy_row = row + 7  # row 17
+    # Revenue Growth YoY (pushed down to clear chart)
+    yoy_row = row + 10
     _write_label_value(ws, yoy_row, 2, "Revenue Growth (YoY):", 3, None)
     rev_yoy = growth.get("revenue_yoy", {})
     col = 3
@@ -126,27 +130,26 @@ def build_tear_sheet(
     row = SECTION_ROWS["stock_performance"]
     _write_section_header(ws, row, "STOCK PERFORMANCE")
 
-    # Price chart (rows 24-30)
-    chart_row = row + 1
+    # Price chart (I30 to Q43)
     if "price_chart" in charts:
-        _embed_image(ws, charts["price_chart"], f"A{chart_row}", width=530, height=225)
+        _embed_image(ws, charts["price_chart"], "I30", width=680, height=260)
 
-    # Returns
-    ret_row = row + 8  # row 31
+    # Returns (stacked with 1-row spacing so they don't stretch under the chart)
+    ret_row = row + 2
     _write_label_value(ws, ret_row, 2, "1-Year Return:", 3, format_percentage(returns.get("1Y")))
-    _write_label_value(ws, ret_row, 6, "3-Year Return:", 7, format_percentage(returns.get("3Y")))
-    _write_label_value(ws, ret_row, 10, "5-Year Return:", 11, format_percentage(returns.get("5Y")))
+    _write_label_value(ws, ret_row + 2, 2, "3-Year Return:", 3, format_percentage(returns.get("3Y")))
+    _write_label_value(ws, ret_row + 4, 2, "5-Year Return:", 3, format_percentage(returns.get("5Y")))
 
     # Beta
     beta = info.get("beta")
-    _write_label_value(ws, ret_row + 1, 2, "Beta:", 3, f"{beta:.2f}" if beta else "N/A")
+    _write_label_value(ws, ret_row + 6, 2, "Beta:", 3, f"{beta:.2f}" if beta else "N/A")
 
     # Dividend / Payout
     _write_label_value(
-        ws, ret_row + 2, 2, "Dividend Yield:", 3, format_percentage(info.get("dividend_yield"))
+        ws, ret_row + 7, 2, "Dividend Yield:", 3, format_percentage(info.get("dividend_yield"))
     )
     _write_label_value(
-        ws, ret_row + 2, 6, "Payout Ratio:", 7, format_percentage(info.get("payout_ratio"))
+        ws, ret_row + 7, 5, "Payout Ratio:", 6, format_percentage(info.get("payout_ratio"))
     )
 
     # =====================================================================
@@ -206,6 +209,36 @@ def build_tear_sheet(
             earnings_date = str(ed[0]) if isinstance(ed, list) else str(ed)
     _write_label_value(ws, row + 7, 2, "Next Earnings Date:", 3, earnings_date or "N/A")
 
+    # =====================================================================
+    # Section 5: Sources / Citations
+    # =====================================================================
+    row = SECTION_ROWS["sources"]
+    _write_section_header(ws, row, "SOURCES")
+
+    ticker_str = data.get("ticker", "")
+    sources = [
+        ("Yahoo Finance — Company Profile", f"https://finance.yahoo.com/quote/{ticker_str}/"),
+        ("Yahoo Finance — Financials", f"https://finance.yahoo.com/quote/{ticker_str}/financials/"),
+        ("Yahoo Finance — Analysis", f"https://finance.yahoo.com/quote/{ticker_str}/analysis/"),
+        ("SEC EDGAR — Company Filings", f"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company={ticker_str}&type=10-K&dateb=&owner=include&count=10"),
+    ]
+    for i, (label, url) in enumerate(sources):
+        src_row = row + 1 + i
+        src_cell = ws.cell(row=src_row, column=2, value=label)
+        src_cell.font = Font(name=FONT_NAME, size=9, color="4472C4", underline="single")
+        src_cell.hyperlink = url
+        src_cell.alignment = Alignment(horizontal="left")
+        # Merge C-E for the URL so it doesn't stretch columns
+        ws.merge_cells(start_row=src_row, start_column=3, end_row=src_row, end_column=5)
+        url_cell = ws.cell(row=src_row, column=3, value=url)
+        url_cell.font = Font(name=FONT_NAME, size=8, color="808080")
+        url_cell.alignment = Alignment(horizontal="left")
+
+    # Fetch date note
+    fetch_date = data.get("fetch_date", "N/A")
+    note_cell = ws.cell(row=row + len(sources) + 1, column=2, value=f"Data retrieved: {fetch_date}")
+    note_cell.font = Font(name=FONT_NAME, size=8, color="808080", italic=True)
+
     # -- Page setup -------------------------------------------------------
     _apply_page_setup(ws)
 
@@ -230,7 +263,7 @@ def _write_section_header(ws, row: int, title: str):
         name=FONT_NAME, size=HEADER_FONT_SIZE, bold=True, color=HEADER_FONT_COLOR
     )
     cell.fill = PatternFill(start_color=HEADER_BG_COLOR, fill_type="solid")
-    cell.alignment = Alignment(horizontal="left", vertical="center")
+    cell.alignment = Alignment(horizontal="center", vertical="center")
     # Apply fill to all merged cells in the row
     for col in range(2, LAST_COL_NUM + 1):
         c = ws.cell(row=row, column=col)

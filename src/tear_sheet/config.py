@@ -61,13 +61,18 @@ CHART_DPI = 150
 
 # ---------------------------------------------------------------------------
 # Excel layout — section starting rows
+# Spacing accounts for chart heights so nothing overlaps.
 # ---------------------------------------------------------------------------
 SECTION_ROWS = {
     "company_overview": 3,
-    "financial_data": 10,
-    "stock_performance": 23,
-    "valuation": 37,
+    "financial_data": 12,
+    "stock_performance": 28,
+    "valuation": 45,
+    "sources": 54,
 }
+
+# Row heights (in points) for rows that need extra space
+DESCRIPTION_ROW_HEIGHT = 60  # each description row gets this height
 
 # Column widths  (column letter → width in Excel units)
 COLUMN_WIDTHS = {
